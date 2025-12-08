@@ -85,6 +85,34 @@ class YTDLStreamSource(discord.AudioSource):
 class MusicCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.music_queue = []
+        self.current_song = None
+
+    def check_queue(self, ctx, error):
+        if error:
+            print(f"Player error: {error}")
+        
+        if len(self.music_queue) > 0:
+            next_song = self.music_queue.pop(0)
+            self.current_song = next_song
+            asyncio.run_coroutine_threadsafe(self.play_music(ctx, next_song), self.bot.loop)
+        else:
+            self.current_song = None
+
+    async def play_music(self, ctx, song):
+        url = song['url']
+        title = song['title']
+        
+        try:
+            source, _ = await YTDLStreamSource.from_url(url, loop=self.bot.loop)
+            volume_source = discord.PCMVolumeTransformer(source, volume=DEFAULT_VOLUME)
+            
+            if ctx.voice_client:
+                ctx.voice_client.play(volume_source, after=lambda e: self.check_queue(ctx, e))
+                await ctx.send(f"Now playing: **{title}**")
+        except Exception as e:
+            await ctx.send(f"Error playing {title}: {e}")
+            self.check_queue(ctx, e)
 
     @commands.command(name="join", help="Joins the voice channel")
     async def join(self, ctx):
@@ -104,46 +132,59 @@ class MusicCog(commands.Cog):
 
         channel = ctx.author.voice.channel
         if not ctx.voice_client:
-            vc = await channel.connect()
-        else:
-            vc = ctx.voice_client
-
+            await channel.connect()
+        
         async with ctx.typing():
             try:
                 # Search first to get the URL
                 with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
                     info = await self.bot.loop.run_in_executor(None, lambda: ydl.extract_info(f"ytsearch:{search}", download=False)['entries'][0])
-                    url = info['url'] # This is the direct stream URL usually, but for yt-dlp -o - we might want the webpage URL?
-                    # Actually, if we pass the webpage URL to yt-dlp -o -, it downloads it.
-                    # If we pass the direct stream URL (googlevideo.com...), yt-dlp might just download it too.
-                    # Let's use the webpage URL (webpage_url) if available, or just the ID.
+                    url = info['url']
                     webpage_url = info.get('webpage_url', url)
                     title = info.get('title', 'Unknown')
 
-                await ctx.send(f"Playing **{title}**")
-                
-                # Create the source
-                source, _ = await YTDLStreamSource.from_url(webpage_url, loop=self.bot.loop)
-                
-                # Wrap in PCMVolumeTransformer for volume control
-                volume_source = discord.PCMVolumeTransformer(source, volume=DEFAULT_VOLUME)
-                
-                if vc.is_playing():
-                    # Graceful stop: Fade out
-                    if isinstance(vc.source, discord.PCMVolumeTransformer):
-                        start_volume = vc.source.volume
-                        steps = 10
-                        for i in range(steps):
-                            vc.source.volume = start_volume * (1 - (i + 1) / steps)
-                            await asyncio.sleep(0.1)
-                    vc.stop()
-                
-                vc.play(volume_source, after=lambda e: print(f"Player error: {e}") if e else None)
+                song = {'url': webpage_url, 'title': title}
+
+                if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
+                    self.music_queue.append(song)
+                    await ctx.send(f"Added to queue: **{title}**")
+                else:
+                    self.current_song = song
+                    await self.play_music(ctx, song)
                 
             except Exception as e:
                 import traceback
                 traceback.print_exc()
                 await ctx.send(f"Error playing: {e}")
+
+    @commands.command(name="skip", help="Skips the current song")
+    async def skip(self, ctx):
+        if ctx.voice_client and ctx.voice_client.is_playing():
+            # Graceful fade out before skipping
+            if isinstance(ctx.voice_client.source, discord.PCMVolumeTransformer):
+                start_volume = ctx.voice_client.source.volume
+                steps = 10
+                for i in range(steps):
+                    ctx.voice_client.source.volume = start_volume * (1 - (i + 1) / steps)
+                    await asyncio.sleep(0.05) # Fast fade (0.5s)
+            
+            ctx.voice_client.stop()
+            await ctx.send("Skipped ⏭️")
+        else:
+            await ctx.send("Nothing to skip.")
+
+    @commands.command(name="queue", help="Shows the current queue")
+    async def queue(self, ctx):
+        if len(self.music_queue) == 0:
+            return await ctx.send("Queue is empty.")
+        
+        queue_list = "\n".join([f"{i+1}. {song['title']}" for i, song in enumerate(self.music_queue)])
+        await ctx.send(f"**Queue:**\n{queue_list}")
+
+    @commands.command(name="clear", help="Clears the queue")
+    async def clear(self, ctx):
+        self.music_queue = []
+        await ctx.send("Queue cleared 🗑️")
 
     @commands.command(name="volume", help="Changes the player's volume")
     async def volume(self, ctx, volume: int):
@@ -161,8 +202,10 @@ class MusicCog(commands.Cog):
 
     @commands.command(name="stop", help="Stops and disconnects")
     async def stop(self, ctx):
+        self.music_queue = [] # Clear queue on stop
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
+        await ctx.send("Stopped and disconnected 👋")
 
     @commands.command(name="leave", help="Leaves the voice channel")
     async def leave(self, ctx):
