@@ -115,12 +115,22 @@ To host this 24/7 on a VPS (Virtual Private Server) like DigitalOcean, Linode, o
     *   Go to **Control Panel** > **Terminal & SNMP**.
     *   Check **Enable SSH service**.
 
-3.  **Deploy**:
+3.  **Deploy (Method A: If you have Git)**:
     *   SSH into your NAS: `ssh your_username@your_nas_ip`
-    *   Clone the repo and run the Docker commands:
+    *   Clone the repo and run:
         ```bash
         git clone https://github.com/WanAqilDev/sturdy-succotash.git
         cd sturdy-succotash
+        sudo docker build -t discord-music-bot .
+        sudo docker run -d --name music-bot -e DISCORD_TOKEN=your_token_here --restart always discord-music-bot
+        ```
+
+4.  **Deploy (Method B: No Git)**:
+    *   **Download**: Download this repository as a ZIP file from GitHub and extract it on your computer.
+    *   **Upload**: Upload the extracted folder to your NAS (e.g., using Synology File Station or `scp`).
+    *   **Run**: SSH into your NAS, navigate to the folder, and run the Docker commands:
+        ```bash
+        cd /path/to/uploaded/folder
         sudo docker build -t discord-music-bot .
         sudo docker run -d --name music-bot -e DISCORD_TOKEN=your_token_here --restart always discord-music-bot
         ```
