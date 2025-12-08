@@ -58,13 +58,14 @@ You can run the bot in a container without installing Python or FFmpeg on your h
 
 1.  **Build the image:**
     ```bash
-    docker build -t discord-music-bot .
+    sudo docker build -t discord-music-bot .
     ```
+    *Note: If you encounter network errors, try restarting the docker service or checking your DNS settings.*
 
 2.  **Run the container:**
     Replace `your_token_here` with your actual bot token.
     ```bash
-    docker run -d --name music-bot -e DISCORD_TOKEN=your_token_here discord-music-bot
+    sudo docker run -d --name music-bot -e DISCORD_TOKEN=your_token_here discord-music-bot
     ```
 
 ## ☁️ Private Hosting Guide
