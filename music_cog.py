@@ -4,6 +4,7 @@ import yt_dlp
 import asyncio
 import subprocess
 import shlex
+import os
 
 # Suppress noisy yt-dlp logs
 yt_dlp.utils.std_headers['User-Agent'] = 'Mozilla/5.0'
@@ -44,12 +45,22 @@ class YTDLStreamSource(discord.AudioSource):
         # We use the real URL here because passing the search term to yt-dlp -o - might be tricky with quotes
         # But wait, yt-dlp -o - "URL" works.
         
+        # Determine executables
+        # Check for local ffmpeg
+        if os.path.isfile('./ffmpeg'):
+            ffmpeg_exec = './ffmpeg'
+        else:
+            ffmpeg_exec = 'ffmpeg'
+
+        # Check for local yt-dlp in .venv
+        if os.path.isfile('./.venv/bin/yt-dlp'):
+            yt_dlp_exec = './.venv/bin/yt-dlp'
+        else:
+            yt_dlp_exec = 'yt-dlp'
+
         # Command to pipe yt-dlp output to ffmpeg
-        # We use 'cat' as a placeholder if we wanted to just pipe file, but here we pipe yt-dlp
-        
-        # Actually, simpler: Just use yt-dlp to stream to stdout
-        yt_dlp_cmd = f'./.venv/bin/yt-dlp -o - "{real_url}"'
-        ffmpeg_cmd = './ffmpeg -i pipe:0 -f s16le -ar 48000 -ac 2 -loglevel warning pipe:1'
+        yt_dlp_cmd = f'{yt_dlp_exec} -o - "{real_url}"'
+        ffmpeg_cmd = f'{ffmpeg_exec} -i pipe:0 -f s16le -ar 48000 -ac 2 -loglevel warning pipe:1'
         
         full_cmd = f'{yt_dlp_cmd} | {ffmpeg_cmd}'
         
