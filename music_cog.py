@@ -87,15 +87,74 @@ class MusicCog(commands.Cog):
         self.bot = bot
         self.music_queue = []
         self.current_song = None
+        self.volume_level = DEFAULT_VOLUME
+        self.download_tasks = {} # Track active downloads
+        
+        if not os.path.exists('./cache'):
+            os.makedirs('./cache')
+
+    async def download_song(self, song):
+        url = song['url']
+        # Use a safe filename based on URL hash or ID if available
+        # For simplicity, let's use a simple hash of the URL
+        import hashlib
+        file_id = hashlib.md5(url.encode()).hexdigest()
+        output_template = f"./cache/{file_id}.%(ext)s"
+        
+        print(f"Starting background download for: {song['title']}")
+        
+        def run_download():
+            opts = YDL_OPTIONS.copy()
+            opts['outtmpl'] = output_template
+            opts['format'] = 'bestaudio/best'
+            # Ensure we don't use the pipe options
+            if 'source_address' in opts: del opts['source_address']
+            
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                return ydl.prepare_filename(info)
+
+        try:
+            filename = await self.bot.loop.run_in_executor(None, run_download)
+            song['local_path'] = filename
+            print(f"Download complete: {song['title']} -> {filename}")
+        except Exception as e:
+            print(f"Download failed for {song['title']}: {e}")
+        finally:
+            # Remove from active tasks
+            if url in self.download_tasks:
+                del self.download_tasks[url]
+
+    def trigger_prefetch(self):
+        # Prefetch next 2 songs
+        to_prefetch = self.music_queue[:2]
+        for song in to_prefetch:
+            url = song['url']
+            if 'local_path' not in song and url not in self.download_tasks:
+                # Use run_coroutine_threadsafe because this might be called from a thread
+                task = asyncio.run_coroutine_threadsafe(self.download_song(song), self.bot.loop)
+                self.download_tasks[url] = task
 
     def check_queue(self, ctx, error):
         if error:
             print(f"Player error: {error}")
         
+        # Cleanup previous song if it was a local file
+        if self.current_song and 'local_path' in self.current_song:
+            try:
+                if os.path.exists(self.current_song['local_path']):
+                    os.remove(self.current_song['local_path'])
+                    print(f"Deleted cached file: {self.current_song['local_path']}")
+            except Exception as e:
+                print(f"Error deleting file: {e}")
+
         if len(self.music_queue) > 0:
             next_song = self.music_queue.pop(0)
             self.current_song = next_song
             asyncio.run_coroutine_threadsafe(self.play_music(ctx, next_song), self.bot.loop)
+            
+            # Trigger prefetch for the new state of the queue
+            self.trigger_prefetch()
         else:
             self.current_song = None
 
@@ -104,8 +163,19 @@ class MusicCog(commands.Cog):
         title = song['title']
         
         try:
-            source, _ = await YTDLStreamSource.from_url(url, loop=self.bot.loop)
-            volume_source = discord.PCMVolumeTransformer(source, volume=DEFAULT_VOLUME)
+            source = None
+            if 'local_path' in song and os.path.exists(song['local_path']):
+                print(f"Playing from cache: {song['local_path']}")
+                
+                # Determine ffmpeg executable
+                ffmpeg_exec = './ffmpeg' if os.path.isfile('./ffmpeg') else 'ffmpeg'
+                
+                source = discord.FFmpegPCMAudio(song['local_path'], executable=ffmpeg_exec)
+            else:
+                print(f"Streaming from URL: {url}")
+                source, _ = await YTDLStreamSource.from_url(url, loop=self.bot.loop)
+                
+            volume_source = discord.PCMVolumeTransformer(source, volume=self.volume_level)
             
             if ctx.voice_client:
                 ctx.voice_client.play(volume_source, after=lambda e: self.check_queue(ctx, e))
@@ -146,11 +216,16 @@ class MusicCog(commands.Cog):
                 song = {'url': webpage_url, 'title': title}
 
                 if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
+                    if len(self.music_queue) >= 20:
+                        return await ctx.send("Queue is full! (Limit: 20 songs)")
+                    
                     self.music_queue.append(song)
                     await ctx.send(f"Added to queue: **{title}**")
+                    self.trigger_prefetch() # Start downloading if needed
                 else:
                     self.current_song = song
                     await self.play_music(ctx, song)
+                    self.trigger_prefetch() # Check if there are others to download (unlikely here but good practice)
                 
             except Exception as e:
                 import traceback
@@ -175,11 +250,35 @@ class MusicCog(commands.Cog):
 
     @commands.command(name="queue", help="Shows the current queue")
     async def queue(self, ctx):
-        if len(self.music_queue) == 0:
+        if len(self.music_queue) == 0 and not self.current_song:
             return await ctx.send("Queue is empty.")
         
-        queue_list = "\n".join([f"{i+1}. {song['title']}" for i, song in enumerate(self.music_queue)])
-        await ctx.send(f"**Queue:**\n{queue_list}")
+        embed_desc = ""
+        
+        # Show currently playing
+        if self.current_song:
+            embed_desc += f"**Now Playing:**\n🎶 {self.current_song['title']}\n\n"
+        
+        # Show up to 10 songs from queue
+        if len(self.music_queue) > 0:
+            embed_desc += "**Up Next:**\n"
+            for i, song in enumerate(self.music_queue[:10]):
+                embed_desc += f"`{i+1}.` {song['title']}\n"
+            
+            if len(self.music_queue) > 10:
+                embed_desc += f"\n*...and {len(self.music_queue) - 10} more*"
+        else:
+            embed_desc += "*Queue is empty*"
+
+        # Create a nice embed
+        embed = discord.Embed(
+            title="Music Queue 🎵",
+            description=embed_desc,
+            color=discord.Color.blue()
+        )
+        embed.set_footer(text=f"Total songs in queue: {len(self.music_queue)}/20")
+        
+        await ctx.send(embed=embed)
 
     @commands.command(name="clear", help="Clears the queue")
     async def clear(self, ctx):
@@ -196,13 +295,29 @@ class MusicCog(commands.Cog):
 
         if ctx.voice_client.source:
             ctx.voice_client.source.volume = volume / 100
+            self.volume_level = volume / 100
             await ctx.send(f"Changed volume to {volume}%")
         else:
-            await ctx.send("Nothing is playing.")
+            self.volume_level = volume / 100
+            await ctx.send(f"Volume set to {volume}% (will apply to next song)")
 
     @commands.command(name="stop", help="Stops and disconnects")
     async def stop(self, ctx):
+        # Cleanup queue files
+        for song in self.music_queue:
+            if 'local_path' in song and os.path.exists(song['local_path']):
+                try:
+                    os.remove(song['local_path'])
+                except: pass
+        
+        # Cleanup current song file
+        if self.current_song and 'local_path' in self.current_song and os.path.exists(self.current_song['local_path']):
+            try:
+                os.remove(self.current_song['local_path'])
+            except: pass
+
         self.music_queue = [] # Clear queue on stop
+        self.volume_level = DEFAULT_VOLUME # Reset volume on stop
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
         await ctx.send("Stopped and disconnected 👋")
