@@ -201,6 +201,13 @@ class MusicCog(commands.Cog):
 
                 ctx.voice_client.play(volume_source, after=lambda e: self.check_queue(ctx, e))
                 await ctx.send(f"Now playing: **{title}**")
+                
+                # Award DJ XP
+                if 'requester_id' in song:
+                    economy_cog = self.bot.get_cog("EconomyCog")
+                    if economy_cog:
+                        economy_cog.add_xp(song['requester_id'], 5, channel=ctx.channel)
+                        
         except Exception as e:
             await ctx.send(f"Error playing {title}: {e}")
             # Only trigger check_queue if we are still connected, to avoid loops
@@ -236,7 +243,7 @@ class MusicCog(commands.Cog):
                     webpage_url = info.get('webpage_url', url)
                     title = info.get('title', 'Unknown')
 
-                song = {'url': webpage_url, 'title': title}
+                song = {'url': webpage_url, 'title': title, 'requester_id': ctx.author.id}
 
                 if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
                     if len(self.music_queue) >= 20:

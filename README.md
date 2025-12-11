@@ -9,6 +9,13 @@ A feature-rich Discord music bot built with `discord.py` and `yt-dlp`. Supports 
 - 🔊 Volume Control (`!volume 0-100`)
 - 📜 Queue System
 - 🚀 Robust playback (pipes audio directly to ffmpeg)
+- 💎 **Economy System**: XP, Levels, Badges, Shop, Gambling, and Rain!
+- 🛡️ **Admin Tools**: Hidden commands for moderators.
+
+## 🛡️ Admin Commands
+*   `!give @User <amount>`: Give diamonds to a user.
+*   `!givexp @User <amount>`: Give XP to a user.
+*   *Requires "Manage Server" permission or Bot Ownership.*
 
 ## Prerequisites
 
