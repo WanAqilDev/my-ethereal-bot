@@ -12,16 +12,18 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     try:
         await bot.load_extension('music_cog')
-        print("Music Cog loaded.")
+        await bot.load_extension('economy_cog')
+        await bot.load_extension('help_cog')
+        print("Cogs loaded.")
     except Exception as e:
-        print(f"Error loading Music Cog: {e}")
+        print(f"Error loading cogs: {e}")
 
 @bot.command()
 async def ping(ctx):

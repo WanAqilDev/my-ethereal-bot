@@ -118,8 +118,12 @@ class MusicCog(commands.Cog):
             filename = await self.bot.loop.run_in_executor(None, run_download)
             song['local_path'] = filename
             print(f"Download complete: {song['title']} -> {filename}")
+            print(f"Download complete: {song['title']} -> {filename}")
         except Exception as e:
-            print(f"Download failed for {song['title']}: {e}")
+            if "Sign in to confirm your age" in str(e):
+                print(f"Download failed (Age Restricted): {song['title']}")
+            else:
+                print(f"Download failed for {song['title']}: {e}")
         finally:
             # Remove from active tasks
             if url in self.download_tasks:
@@ -138,6 +142,13 @@ class MusicCog(commands.Cog):
     def check_queue(self, ctx, error):
         if error:
             print(f"Player error: {error}")
+        
+        # Check if voice client is still connected
+        if not ctx.voice_client or not ctx.voice_client.is_connected():
+            print("Voice client disconnected, stopping queue.")
+            self.music_queue = []
+            self.current_song = None
+            return
         
         # Cleanup previous song if it was a local file
         if self.current_song and 'local_path' in self.current_song:
@@ -178,11 +189,30 @@ class MusicCog(commands.Cog):
             volume_source = discord.PCMVolumeTransformer(source, volume=self.volume_level)
             
             if ctx.voice_client:
+                if not ctx.voice_client.is_connected():
+                    await ctx.send("Bot was disconnected. Rejoining...")
+                    channel = ctx.author.voice.channel
+                    # Force disconnect first to ensure clean state
+                    try:
+                        await ctx.voice_client.disconnect(force=True)
+                    except:
+                        pass
+                    await channel.connect()
+
                 ctx.voice_client.play(volume_source, after=lambda e: self.check_queue(ctx, e))
                 await ctx.send(f"Now playing: **{title}**")
+                
+                # Award DJ XP
+                if 'requester_id' in song:
+                    economy_cog = self.bot.get_cog("EconomyCog")
+                    if economy_cog:
+                        economy_cog.add_xp(song['requester_id'], 5, channel=ctx.channel)
+                        
         except Exception as e:
             await ctx.send(f"Error playing {title}: {e}")
-            self.check_queue(ctx, e)
+            # Only trigger check_queue if we are still connected, to avoid loops
+            if ctx.voice_client and ctx.voice_client.is_connected():
+                self.check_queue(ctx, e)
 
     @commands.command(name="join", help="Joins the voice channel")
     async def join(self, ctx):
@@ -213,7 +243,7 @@ class MusicCog(commands.Cog):
                     webpage_url = info.get('webpage_url', url)
                     title = info.get('title', 'Unknown')
 
-                song = {'url': webpage_url, 'title': title}
+                song = {'url': webpage_url, 'title': title, 'requester_id': ctx.author.id}
 
                 if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
                     if len(self.music_queue) >= 20:
@@ -227,10 +257,14 @@ class MusicCog(commands.Cog):
                     await self.play_music(ctx, song)
                     self.trigger_prefetch() # Check if there are others to download (unlikely here but good practice)
                 
+
             except Exception as e:
-                import traceback
-                traceback.print_exc()
-                await ctx.send(f"Error playing: {e}")
+                if "Sign in to confirm your age" in str(e):
+                    await ctx.send(f"⚠️ Cannot play **{search}**: Age restricted content.")
+                else:
+                    import traceback
+                    traceback.print_exc()
+                    await ctx.send(f"Error playing: {e}")
 
     @commands.command(name="skip", help="Skips the current song")
     async def skip(self, ctx):
