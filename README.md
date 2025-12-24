@@ -23,6 +23,14 @@ A robust, multi-service Discord ecosystem featuring Music, Economy, Gambling, Ci
 *   **React App**: A beautiful "Letter League"-style web activity for Cinema (and future Arcade games).
 *   **API**: FastAPI backend handling auth, economy transactions, and socket events.
 
+### ⚠️ Critical Note: Privileged Intents
+The bots require **Privileged Intents** to function (reading messages, checking voice states).
+1.  Go to the [Discord Developer Portal](https://discord.com/developers/applications).
+2.  Select your Application -> **Bot** tab.
+3.  Scroll down to **Privileged Gateway Intents**.
+4.  Enable **Message Content Intent**, **Server Members Intent**, and **Presence Intent**.
+5.  Save Changes. *If skipped, the bot will crash on startup.*
+
 ---
 
 ## 🚀 Deployment Guide
