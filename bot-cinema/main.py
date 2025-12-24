@@ -8,6 +8,7 @@ from common.database.db import Database
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
+intents.members = True # Required for Session Validation
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
