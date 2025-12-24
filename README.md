@@ -1,143 +1,111 @@
-# Discord Music Bot 🎵
+# Ethereal Trifid: The Ultimate Discord Ecosystem 🎵🍿💎
 
-A feature-rich Discord music bot built with `discord.py` and `yt-dlp`. Supports playing music from YouTube, volume control, queue management, and more.
+A robust, multi-service Discord ecosystem featuring Music, Economy, Gambling, Cinema, and Custom Activities.
+
+![Monorepo](https://img.shields.io/badge/Architecture-Monorepo-blue)
+![Discord.py](https://img.shields.io/badge/Bots-Discord.py%202.0-7289DA)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688)
+![React](https://img.shields.io/badge/Web-React%20%2B%20Vite-61DAFB)
 
 ## Features
 
-- 🎶 Play music from YouTube (URL or search terms)
-- ⏯️ Pause, Resume, Stop, Skip
-- 🔊 Volume Control (`!volume 0-100`)
-- 📜 Queue System
-- 🚀 Robust playback (pipes audio directly to ffmpeg)
-- 💎 **Economy System**: XP, Levels, Badges, Shop, Gambling, and Rain!
-- 🛡️ **Admin Tools**: Hidden commands for moderators.
+### 🤖 Bot 1: Music & Economy (Omni-Bot)
+*   **Music**: High-quality playback (`yt-dlp`), Persistent Queue (Redis), Audio Filters (Bass Boost, Nightcore), Playlists, Looping, Seeking.
+*   **Economy**: Persistent Postgres Database, Daily Rewards, Shop System (30+ items).
+*   **Casino**: `!coinflip` (50% odds), `!slots` (5% jackpot), `!rain` (share wealth).
+*   **Levels**: Chat/Voice XP system with tiered income bonuses.
 
-## 🛡️ Admin Commands
-*   `!give @User <amount>`: Give diamonds to a user.
-*   `!givexp @User <amount>`: Give XP to a user.
-*   *Requires "Manage Server" permission or Bot Ownership.*
+### 🤖 Bot 2: Cinema & Activities
+*   **Cinema**: Create private sessions (`!cinema create`), buy tickets, and watch synchronized video with friends.
+*   **Sync Engine**: Real-time Socket.IO synchronization guarantees all viewers see the same frame.
 
-## Prerequisites
+### 🌐 Web Activity & API
+*   **React App**: A beautiful "Letter League"-style web activity for Cinema (and future Arcade games).
+*   **API**: FastAPI backend handling auth, economy transactions, and socket events.
 
-- **Python 3.8+**
-- **FFmpeg** (Included in Docker, but required for local run)
-- **Discord Bot Token** (Get one from the [Discord Developer Portal](https://discord.com/developers/applications))
+---
 
-## 🛠️ Local Setup & Running
+## 🚀 Deployment Guide
 
-1.  **Clone the repository:**
+### Method 1: Docker (Standard) - *Recommended*
+1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/WanAqilDev/sturdy-succotash.git
-    cd sturdy-succotash
+    git clone https://github.com/WanAqilDev/my-ethereal-bot.git
+    cd my-ethereal-bot
     ```
-
-2.  **Create a virtual environment (optional but recommended):**
-    ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-    ```
-
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4.  **Install FFmpeg:**
-    *   **Linux (Debian/Ubuntu):** `sudo apt install ffmpeg`
-    *   **Windows:** Download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and add to PATH.
-    *   **MacOS:** `brew install ffmpeg`
-    *   *Note: The bot is configured to look for `./ffmpeg` in the root directory by default if you downloaded a static binary. If you installed it globally, you might need to adjust the executable path in `music_cog.py`.*
-
-5.  **Configure Environment:**
-    Create a `.env` file in the root directory:
-    ```env
-    DISCORD_TOKEN=your_discord_bot_token_here
-    ```
-
-6.  **Run the bot:**
-    ```bash
-    python main.py
-    ```
-
-## 🐳 Running with Docker
-
-You can run the bot in a container without installing Python or FFmpeg on your host machine.
-
-1.  **Build the image:**
-    ```bash
-    sudo docker build -t discord-music-bot .
-    ```
-    *Note: If you encounter network errors, try restarting the docker service or checking your DNS settings.*
-
-2.  **Run the container:**
-    Replace `your_token_here` with your actual bot token.
-    ```bash
-    sudo docker run -d --name music-bot -e DISCORD_TOKEN=your_token_here discord-music-bot
-    ```
-
-## ☁️ Private Hosting Guide
-
-To host this 24/7 on a VPS (Virtual Private Server) like DigitalOcean, Linode, or AWS EC2:
-
-### Option 1: Using Docker (Recommended)
-1.  SSH into your VPS.
-2.  Install Docker.
-3.  Clone the repo and follow the **Running with Docker** steps above.
-4.  To ensure it restarts automatically:
-    ```bash
-    docker run -d --restart unless-stopped --name music-bot -e DISCORD_TOKEN=your_token_here discord-music-bot
-    ```
-
-### Option 2: Using Systemd (Linux Service)
-1.  Follow the **Local Setup** steps on your VPS.
-2.  Create a service file: `sudo nano /etc/systemd/system/musicbot.service`
-3.  Paste the following (adjust paths/user):
+2.  **Configure Environment**:
+    Create a `.env` file (copy `.env.example` if available) with your keys:
     ```ini
-    [Unit]
-    Description=Discord Music Bot
-    After=network.target
-
-    [Service]
-    User=root
-    WorkingDirectory=/path/to/sturdy-succotash
-    ExecStart=/path/to/sturdy-succotash/.venv/bin/python main.py
-    Restart=always
-
-    [Install]
-    WantedBy=multi-user.target
+    POSTGRES_PASSWORD=secret
+    MUSIC_BOT_TOKEN=...
+    CINEMA_BOT_TOKEN=...
+    # ... see docker-compose.yml for full list
     ```
-4.  Enable and start:
+3.  **Run**:
     ```bash
-    sudo systemctl start musicbot
+    docker-compose up -d --build
     ```
 
-### Option 3: Synology NAS
+### Method 2: Portainer (GUI)
+1.  Go to your Portainer Dashboard -> **Stacks** -> **Add stack**.
+2.  **Repository**: Select "Git Repository" and enter `https://github.com/WanAqilDev/my-ethereal-bot.git`.
+3.  **Compose Path**: `docker-compose.yml`.
+4.  **Environment Variables**: Manually add every variable from your `.env` file (Tokens, Passwords, etc.).
+5.  Click **Deploy the stack**.
 
-1.  **Install Container Manager**:
-    *   Log in to your Synology DSM.
-    *   Open **Package Center**.
-    *   Search for and install **Container Manager** (formerly Docker).
+### Method 3: Proxmox CT (LXC Container)
+Running inside a lightweight Linux Container (LXC) on Proxmox.
 
-2.  **Enable SSH**:
-    *   Go to **Control Panel** > **Terminal & SNMP**.
-    *   Check **Enable SSH service**.
+1.  **Create CT**:
+    *   Template: Ubuntu 22.04 or Debian 12.
+    *   Resources: 2GB RAM, 2 Cores recommended.
+    *   **IMPORTANT**: In Options, enable **Nesting** and **FUSE** (required for Docker inside LXC).
 
-3.  **Deploy (Method A: If you have Git)**:
-    *   SSH into your NAS: `ssh your_username@your_nas_ip`
-    *   Clone the repo and run:
-        ```bash
-        git clone https://github.com/WanAqilDev/sturdy-succotash.git
-        cd sturdy-succotash
-        sudo docker build -t discord-music-bot .
-        sudo docker run -d --name music-bot -e DISCORD_TOKEN=your_token_here --restart always discord-music-bot
-        ```
+2.  **Install Docker inside CT**:
+    Open the CT Console and run:
+    ```bash
+    apt update && apt install -y curl
+    curl -fsSL https://get.docker.com | sh
+    apt install -y docker-compose-plugin
+    ```
 
-4.  **Deploy (Method B: No Git)**:
-    *   **Download**: Download this repository as a ZIP file from GitHub and extract it on your computer.
-    *   **Upload**: Upload the extracted folder to your NAS (e.g., using Synology File Station or `scp`).
-    *   **Run**: SSH into your NAS, navigate to the folder, and run the Docker commands:
-        ```bash
-        cd /path/to/uploaded/folder
-        sudo docker build -t discord-music-bot .
-        sudo docker run -d --name music-bot -e DISCORD_TOKEN=your_token_here --restart always discord-music-bot
-        ```
+3.  **Deploy**:
+    Follow the **Method 1 (Docker)** steps inside the CT console.
+
+### Method 4: Manual / Native (No Docker)
+Best for Windows Server or low-spec VPS.
+1.  **Install Prerequisites**: Python 3.9+, PostgreSQL, Redis, Node.js, FFmpeg.
+2.  **Setup Database**: Ensure Postgres and Redis are running.
+3.  **Install Python Dependencies**:
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    pip install -r bot-music-casino/requirements.txt
+    pip install -r bot-cinema/requirements.txt
+    pip install -r api/requirements.txt
+    pip install -e common/
+    ```
+4.  **Run Services** (in separate terminals):
+    ```bash
+    python bot-music-casino/main.py
+    python bot-cinema/main.py
+    uvicorn api.main:app --reload
+    ```
+5.  **Run Frontend**:
+    ```bash
+    cd activity && npm install && npm run dev
+    ```
+
+---
+
+## 🛠️ Configuration
+*   **Casino Odds**: Edit `bot-music-casino/cogs/economy_cog.py` to change `Win Rates` and `Multipliers`.
+*   **Shop Items**: Edit `shop` command in `economy_cog.py`.
+
+## 🤝 Contributing
+1.  Fork the repository.
+2.  Create a feature branch.
+3.  Submit a Pull Request.
+
+## 📄 License
+MIT License
