@@ -59,7 +59,7 @@ class HelpCog(commands.Cog):
                 cmd_names = sorted([f"`!{c.name}`" for c in misc_cmds])
                 embed.add_field(name="🛠️ Misc / Admin", value=", ".join(cmd_names), inline=False)
 
-            embed.set_footer(text="Made with 💖")
+            embed.set_footer(text="Made with 💖 by Snow ft. Antigravity")
             await ctx.send(embed=embed)
 
 async def setup(bot):

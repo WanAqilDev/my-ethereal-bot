@@ -23,6 +23,49 @@ SLOTS_SYMBOLS = ["🍒", "🍋", "🍇", "💎", "7️⃣"]
 # 'lottery': Entire amount is distributed randomly (Winner takes most? No, just fully random 1-by-1 distribution).
 RAIN_MODE = 'standard' 
 
+# Shop Configuration
+# Shop Configuration
+SHOP_ITEMS = {
+    "Essentials": {
+        "cookie": {"name": "🍪 Cookie", "price": 10},
+        "coffee": {"name": "☕ Coffee", "price": 50},
+        "rose": {"name": "🌹 Rose", "price": 100},
+        "beer": {"name": "🍺 Beer", "price": 150},
+        "pizza": {"name": "🍕 Pizza", "price": 200},
+        "bronze_ring": {"name": "💍 Bronze Ring", "price": 300},
+        "teddy": {"name": "🧸 Teddy Bear", "price": 300},
+        "sunglasses": {"name": "🕶️ Sunglasses", "price": 400},
+        "hat": {"name": "🧢 Cool Hat", "price": 450},
+        "plant": {"name": "🪴 Potted Plant", "price": 500},
+    },
+    "Lifestyle": {
+        "silver_ring": {"name": "💍 Silver Ring", "price": 1000},
+        "sneakers": {"name": "👟 Air Jordans", "price": 2000},
+        "necklace": {"name": "📿 Gold Necklace", "price": 2500},
+        "bag": {"name": "👜 Designer Bag", "price": 3000},
+        "console": {"name": "🎮 Gaming Console", "price": 4000},
+        "iphone": {"name": "📱 iPhone 16", "price": 5000},
+        "laptop": {"name": "💻 Gaming Laptop", "price": 6000},
+        "guitar": {"name": "🎸 Electric Guitar", "price": 7000},
+        "camera": {"name": "📷 DSLR Camera", "price": 8000},
+        "watch": {"name": "⌚ Gold Watch", "price": 10000},
+    },
+    "Luxury": {
+        "diamond_ring": {"name": "💍 Diamond Ring", "price": 15000},
+        "motorcycle": {"name": "🏍️ Motorcycle", "price": 20000},
+        "car": {"name": "🏎️ Sports Car", "price": 50000},
+        "boat": {"name": "🛥️ Luxury Boat", "price": 75000},
+        "tiny_house": {"name": "🏠 Tiny House", "price": 100000},
+        "penthouse": {"name": "🏙️ Penthouse", "price": 200000},
+        "mansion": {"name": "🏰 Mansion", "price": 300000},
+        "robot": {"name": "🤖 Robot Butler", "price": 400000},
+        "island": {"name": "🏝️ Private Island", "price": 500000},
+    },
+    "Services": {
+        "skip": {"name": "⏭️ Skip Song", "price": 10, "type": "consumable"}
+    }
+}
+
 class EconomyCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -100,13 +143,6 @@ class EconomyCog(commands.Cog):
                 channel = guild.voice_client.channel
                 for member in channel.members:
                     if not member.bot:
-                        # We need to fetch level to determine income, but doing N queries is bad.
-                        # For MVP we will just do it. Optimization: Bulk update later.
-                        
-                        # Just ensure user exists first (fire and forget kinda)
-                        # Actually we can just try update, if 0 rows, insert.
-                        # But `ensure_user` is safe.
-                        
                         data = await self.get_user_data(member.id)
                         if not data: continue
                         
@@ -141,7 +177,6 @@ class EconomyCog(commands.Cog):
         current_level_xp_start = (level - 1) * XP_PER_LEVEL
         next_level_xp_start = level * XP_PER_LEVEL
         
-        # Avoid division by zero issues or weirdness if xp < start
         if xp < current_level_xp_start: xp = current_level_xp_start
         
         needed = XP_PER_LEVEL
@@ -167,75 +202,65 @@ class EconomyCog(commands.Cog):
             description="Spend your hard-earned diamonds here!",
             color=discord.Color.purple()
         )
-        embed.add_field(name="--- 🎵 Music ---", value="Use commands to buy", inline=False)
-        embed.add_field(name="1. Skip Song ⏭️", value="**10 💎**\nForce skip the current song.", inline=True) # Updated cost
         
-        embed.add_field(name="--- 💍 Flex ---", value="Permanent items", inline=False)
-        embed.add_field(name="2. Diamond Ring 💍", value="**500 💎**\nShiny on your profile.", inline=True)
-        embed.add_field(name="3. Super Yacht 🛥️", value="**10,000 💎**\nThe ultimate flex.", inline=True)
-
-        embed.add_field(name="--- 🌧️ Rain ---", value="`!rain <tier> <delay>`", inline=False)
-        embed.add_field(name="Tiers", value="120, 480, 980, 4800 💎", inline=True)
-        embed.add_field(name="Delays", value="0, 5, 10, 15 mins", inline=True)
-        
-        embed.set_footer(text="Use !buy <item name> to purchase")
+        for category, items in SHOP_ITEMS.items():
+            item_list = []
+            for key, data in items.items():
+                item_list.append(f"`{key.ljust(10)}` {data['name']} (**{data['price']:,} 💎**)")
+            
+            embed.add_field(name=f"--- {category} ---", value="\n".join(item_list), inline=False)
+            
+        embed.set_footer(text="Use !buy <item id> to purchase. Example: !buy car")
         await ctx.send(embed=embed)
 
     @commands.command(name="buy", help="Buy an item from the shop")
-    async def buy(self, ctx, *, item: str):
-        item = item.lower()
+    async def buy(self, ctx, *, item_key: str):
+        item_key = item_key.lower()
         user_id = ctx.author.id
         
-        # We need to fetch inventory to check ownership
+        # 1. Find the item in our dictionary
+        target_item = None
+        for category, items in SHOP_ITEMS.items():
+            if item_key in items:
+                target_item = items[item_key]
+                break
+        
+        if not target_item:
+            return await ctx.send("Item not found. Check `!shop` for valid item IDs (e.g., `!buy cookie`).")
+            
+        price = target_item["price"]
+        name = target_item["name"]
+        
+        # 2. Check Logic for Consumables vs Permanent
+        if item_key == "skip":
+            if await self.remove_balance(user_id, price):
+                 music_cog = self.bot.get_cog("MusicCog")
+                 if music_cog and ctx.voice_client and ctx.voice_client.is_playing():
+                     await ctx.send(f"💎 **{ctx.author.name}** bought a SKIP for {price} diamonds!")
+                     await music_cog.skip(ctx)
+                 else:
+                     await self.add_balance(user_id, price) # Refund
+                     await ctx.send("Nothing playing to skip! Refunded.")
+            else:
+                await ctx.send(f"You need **{price} 💎**!")
+            return
+
+        # 3. Permanent Items Logic
+        # Check if already owned
         data = await self.get_user_data(user_id)
         inventory = data['inventory'] or []
         
-        pool = await Database.get_pool()
-
-        if item in ["skip", "song skip", "1"]:
-            cost = 10 # Updated from 50 to 10
-            if await self.remove_balance(user_id, cost):
-                # Trigger the skip logic from MusicCog
-                music_cog = self.bot.get_cog("MusicCog")
-                if music_cog:
-                    if ctx.voice_client and ctx.voice_client.is_playing():
-                        await ctx.send(f"💎 **{ctx.author.name}** bought a SKIP for {cost} diamonds!")
-                        await music_cog.skip(ctx)
-                    else:
-                        await self.add_balance(user_id, cost)
-                        await ctx.send("Nothing is playing! Refunded 10 💎.")
-                else:
-                    await self.add_balance(user_id, cost)
-                    await ctx.send("Music system error. Refunded.")
-            else:
-                await ctx.send(f"You need **{cost} 💎**! (Bal: {data['balance']})")
-        
-        elif item in ["ring", "diamond ring", "2"]:
-            cost = 500
-            if "💍 Diamond Ring" in inventory:
-                return await ctx.send("You already have a ring!")
+        if name in inventory:
+            return await ctx.send(f"You already own a **{name}**!")
             
-            if await self.remove_balance(user_id, cost):
-                async with pool.acquire() as conn:
-                    await conn.execute("UPDATE users SET inventory = array_append(inventory, $2) WHERE user_id = $1", user_id, "💍 Diamond Ring")
-                await ctx.send(f"💍 **{ctx.author.name}** proposed to themselves! They now own a Diamond Ring!")
-            else:
-                await ctx.send(f"You need **{cost} 💎**!")
-
-        elif item in ["yacht", "super yacht", "3"]:
-            cost = 10000
-            if "🛥️ Super Yacht" in inventory:
-                return await ctx.send("You already have a yacht!")
-
-            if await self.remove_balance(user_id, cost):
-                async with pool.acquire() as conn:
-                    await conn.execute("UPDATE users SET inventory = array_append(inventory, $2) WHERE user_id = $1", user_id, "🛥️ Super Yacht")
-                await ctx.send(f"🛥️ **{ctx.author.name}** is sailing away! They bought a Super Yacht!")
-            else:
-                await ctx.send(f"You need **{cost} 💎**!")
-            
+        # 4. Transaction
+        if await self.remove_balance(user_id, price):
+            pool = await Database.get_pool()
+            async with pool.acquire() as conn:
+                await conn.execute("UPDATE users SET inventory = array_append(inventory, $2) WHERE user_id = $1", user_id, name)
+            await ctx.send(f"🛍️ **{ctx.author.name}** bought **{name}** for {price:,} 💎!")
         else:
-            await ctx.send("Item not found. Check `!shop`.")
+            await ctx.send(f"You need **{price:,} 💎**!")
 
     @commands.command(name="pay", help="Pay another user")
     async def pay(self, ctx, member: discord.Member, amount: int):
