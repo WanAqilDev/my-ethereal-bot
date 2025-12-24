@@ -81,10 +81,17 @@ class CinemaCog(commands.Cog):
                 return await ctx.send("You already have a ticket! Open the Web App to watch.")
 
             # Transaction
-            # 1. Update Balance
-            result = await conn.execute("UPDATE users SET balance = balance - $2 WHERE user_id = $1 AND balance >= $2", ctx.author.id, TICKET_PRICE)
-            if result == "UPDATE 0":
-                return await ctx.send(f"Insufficient funds! Ticket costs **{TICKET_PRICE} 💎**.")
+            # 1. Update Balance (User -> Bank)
+            async with conn.transaction():
+                result = await conn.execute(
+                    "UPDATE users SET balance = balance - $2 WHERE user_id = $1 AND balance >= $2",
+                    ctx.author.id, TICKET_PRICE
+                )
+                if result == "UPDATE 0":
+                    return await ctx.send(f"Insufficient funds! Ticket costs **{TICKET_PRICE} 💎**.")
+                
+                # Transfer to Bank (ID 0)
+                await conn.execute("UPDATE users SET balance = balance + $2 WHERE user_id = $1", 0, TICKET_PRICE)
             
             # 2. Issue Ticket
             await conn.execute("INSERT INTO cinema_tickets (session_id, user_id) VALUES ($1::uuid, $2)", session_id, ctx.author.id)
