@@ -1,14 +1,90 @@
 version: '3.8'
 
 services:
-  music-bot:
-    build: .
-    container_name: music-bot
-    restart: unless-stopped
+  # ==============================================
+  # INFRASTRUCTURE
+  # ==============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: de_postgres
+    restart: always
     environment:
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - APP_ID=${APP_ID}
-      - PUBLIC_KEY=${PUBLIC_KEY}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-economy_db}
+    ports:
+      - "5432:5432"
     volumes:
-      - ./economy.json:/app/economy.json
-      - ./cache:/app/cache
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: de_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  # ==============================================
+  # BOTS
+  # ==============================================
+  bot_music:
+    build:
+      context: .
+      dockerfile: bot-music-casino/Dockerfile
+    container_name: de_bot_music
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./bot-music-casino:/app/bot
+      - ./common:/app/common
+      - ./cookies.txt:/app/cookies.txt
+    environment:
+      - DISCORD_TOKEN=${MUSIC_BOT_TOKEN}
+      - DISCORD_CLIENT_ID=${MUSIC_BOT_CLIENT_ID}
+      - DB_HOST=postgres
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+
+  bot_cinema:
+    build:
+      context: .
+      dockerfile: bot-cinema/Dockerfile
+    container_name: de_bot_cinema
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./bot-cinema:/app/bot
+      - ./common:/app/common
+    environment:
+      - DISCORD_TOKEN=${CINEMA_BOT_TOKEN}
+      - DB_HOST=postgres
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+
+  # ==============================================
+  # API
+  # ==============================================
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: de_api
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app/api
+      - ./common:/app/common
+    environment:
+      - DB_HOST=postgres
+      - REDIS_URL=redis://redis:6379/0
+
+volumes:
+  postgres_data:

@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fallback if tailwind not installed via postcss yet, just basic CSS */
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #1a1b1e;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}

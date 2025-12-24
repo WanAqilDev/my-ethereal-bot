@@ -1,0 +1,5 @@
+discord.py
+asyncpg
+redis
+python-dotenv
+python-socketio[asyncio_client]

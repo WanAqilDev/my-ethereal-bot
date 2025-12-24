@@ -1,8 +1,33 @@
+# Environment & Secrets
 .env
+.env.*
+!.env.example
+
+# Python
 .venv/
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Node / Web Activity
+node_modules/
+activity/dist/
+activity/build/
+.npm
+npm-debug.log*
+
+# Bot Artifacts
 ffmpeg
 cache/
-economy.json
+economy.json # Legacy
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Docker
+docker-compose.override.yml
