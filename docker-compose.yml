@@ -43,6 +43,7 @@ services:
     environment:
       - DISCORD_TOKEN=${MUSIC_BOT_TOKEN}
       - DISCORD_CLIENT_ID=${MUSIC_BOT_CLIENT_ID}
+      - DISCORD_PUBLIC_KEY=${MUSIC_BOT_PUBLIC_KEY}
       - DB_HOST=postgres
       - REDIS_URL=redis://redis:6379/0
       - PYTHONPATH=/app
@@ -61,6 +62,8 @@ services:
       - ./common:/app/common
     environment:
       - DISCORD_TOKEN=${CINEMA_BOT_TOKEN}
+      - DISCORD_CLIENT_ID=${CINEMA_BOT_CLIENT_ID}
+      - DISCORD_PUBLIC_KEY=${CINEMA_BOT_PUBLIC_KEY}
       - DB_HOST=postgres
       - REDIS_URL=redis://redis:6379/0
       - PYTHONPATH=/app
