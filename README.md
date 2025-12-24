@@ -106,7 +106,23 @@ Best for Windows Server or low-spec VPS.
 
 ---
 
-## 🛠️ Configuration
+## � Permissions Guide
+When inviting the bots to your server (OAuth2 -> URL Generator), ensure you check these permissions:
+
+### Bot 1: Music & Economy
+*   **Scopes**: `bot`, `applications.commands`
+*   **Bot Permissions**:
+    *   **General**: `Read Messages/View Channels`, `Manage Messages` (for cleaning up).
+    *   **Text**: `Send Messages`, `Embed Links`, `Attach Files`, `Read Message History`, `Add Reactions`, `Use External Emojis`.
+    *   **Voice**: `Connect`, `Speak`, `Use Voice Activity`.
+
+### Bot 2: Cinema
+*   **Scopes**: `bot`, `applications.commands`
+*   **Bot Permissions**:
+    *   **General**: `Read Messages/View Channels`.
+    *   **Text**: `Send Messages`, `Embed Links`, `Read Message History`.
+
+## �🛠️ Configuration
 *   **Casino Odds**: Edit `bot-music-casino/cogs/economy_cog.py` to change `Win Rates` and `Multipliers`.
 *   **Shop Items**: Edit `shop` command in `economy_cog.py`.
 
