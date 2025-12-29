@@ -95,5 +95,5 @@ async def pause_video(sid, data):
     await sio.emit('sync_video', {'action': 'pause'}, room=room)
 
 # 5. Include Routers
-from routers import users
+from api.routers import users
 app.include_router(users.router)

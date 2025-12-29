@@ -50,6 +50,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
       - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
 
   bot_cinema:
     build:
@@ -73,6 +74,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
       - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
 
   # ==============================================
   # API

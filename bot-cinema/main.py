@@ -15,14 +15,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 @bot.event
 async def on_ready():
     print(f'Cinema Bot connected as {bot.user}')
-
-    # Initialize Database
-    try:
-        await Database.get_pool()
-        print("Database connected.")
-    except Exception as e:
-        print(f"Failed to connect to DB: {e}")
-
+    
     # Load Cogs
     try:
         await bot.load_extension('cogs.cinema_cog')
@@ -31,9 +24,18 @@ async def on_ready():
         print(f"Failed to load Cinema Cog: {e}")
 
 async def main():
-    token = os.getenv('DISCORD_TOKEN')
-    if not token:
-        print("Error: DISCORD_TOKEN not found.")
+    token = os.getenv('DISCORD_TOKEN') or os.getenv('CINEMA_BOT_TOKEN')
+    if not token or token == 'your_cinema_bot_token_here':
+         print("Error: CINEMA_BOT_TOKEN not found.")
+         return
+    
+    # GUARD RAIL: Connect to DB first
+    print("⏳ Connecting to Database...")
+    try:
+        await Database.get_pool()
+        print("✅ Database connection established.")
+    except Exception as e:
+        print(f"❌ CRITICAL: Database connection failed. Bot shutting down.\nReason: {e}")
         return
     
     async with bot:

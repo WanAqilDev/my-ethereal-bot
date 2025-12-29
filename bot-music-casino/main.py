@@ -20,13 +20,6 @@ bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     
-    # Initialize Database
-    try:
-        await Database.get_pool()
-        print("Database connected.")
-    except Exception as e:
-        print(f"Failed to connect to DB: {e}")
-
     # Load Cogs
     initial_extensions = ['cogs.music_cog', 'cogs.economy_cog', 'cogs.help_cog']
     for extension in initial_extensions:
@@ -36,25 +29,34 @@ async def on_ready():
         except Exception as e:
             print(f"Failed to load extension {extension}: {e}")
 
-@bot.command()
-async def ping(ctx):
-    await ctx.send('Pong!')
+# Duplicate ping command removed (handled by HelpCog)
 
 @bot.command(name='restart', help='Restarts the bot (Admin only)')
 @commands.is_owner()
 async def restart(ctx):
     await ctx.send('Restarting...')
     await bot.close()
-    # Docker restart policy 'always' will handle the restart after process exit
     import sys
     sys.exit(0)
 
 async def main():
-    token = os.getenv('DISCORD_TOKEN')
-    if not token or token == 'your_token_here':
-        print("Error: DISCORD_TOKEN not found in .env file.")
+    # Support both docker env var (mapped) and native .env (direct)
+    token = os.getenv('DISCORD_TOKEN') or os.getenv('MUSIC_BOT_TOKEN')
+    if not token or token == 'your_music_bot_token_here':
+        print("Error: MUSIC_BOT_TOKEN not found in .env file.")
         return
     
+    # GUARD RAIL: Connect to DB *before* logging in
+    # This specifically prevents "Zombie" native processes (which lack DB) 
+    # from staying online and confusing users.
+    print("⏳ Connecting to Database...")
+    try:
+        await Database.get_pool()
+        print("✅ Database connection established.")
+    except Exception as e:
+        print(f"❌ CRITICAL failure: Could not connect to Database. Bot will NOT start.\nReason: {e}")
+        return
+
     async with bot:
         await bot.start(token)
 

@@ -42,7 +42,18 @@ class MusicCog(commands.Cog):
         self.loop_mode = "off"
         self.active_filter = "normal"
         
+        # Smart Redis URL detection
         redis_url = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+        # If native (windows), verify we can actually resolve 'redis' hostname.
+        # If not, fallback to localhost.
+        try:
+             import socket
+             host = redis_url.split('@')[-1].split(':')[0].replace('//', '') # naive parse
+             socket.gethostbyname(host)
+        except:
+             print("⚠️ Could not resolve Redis host. Falling back to localhost.")
+             redis_url = 'redis://localhost:6379/0'
+
         self.redis = redis.from_url(redis_url, decode_responses=True)
         
         self.inactivity_check.start()
@@ -91,6 +102,12 @@ class MusicCog(commands.Cog):
             source = discord.FFmpegPCMAudio(stream_url, executable=ffmpeg_exec, **ffmpeg_opts)
             volume_source = discord.PCMVolumeTransformer(source, volume=self.volume_level)
             
+            if ctx.voice_client is None:
+                if ctx.author.voice:
+                    await ctx.author.voice.channel.connect()
+                else:
+                    return await ctx.send("You are not in a voice channel.")
+
             if ctx.voice_client:
                 if ctx.voice_client.is_playing(): ctx.voice_client.stop()
                 ctx.voice_client.play(volume_source, after=lambda e: self.check_queue(ctx, e))
