@@ -220,7 +220,9 @@ class EconomyCog(commands.Cog):
             await self.ensure_user(member.id)
             await self.payout_from_bank(member.id, amount_per_person, "Airdrop")
         
-        await ctx.send(f"🎈 Global Airdrop! **{amount:,} 💎** distributed to {len(online_members)} citizens ({amount_per_person:,} each).")        for guild in self.bot.guilds:
+        await ctx.send(f"🎈 Global Airdrop! **{amount:,} 💎** distributed to {len(online_members)} citizens ({amount_per_person:,} each).")
+
+        for guild in self.bot.guilds:
             if guild.voice_client and guild.voice_client.is_connected():
                 channel = guild.voice_client.channel
                 for member in channel.members:
