@@ -9,6 +9,8 @@ from common.database.db import Database
 class CinemaCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        from common.version import get_version
+        print(f"🎬 Cinema Bot v{get_version()} Initializing...")
         self.sio = socketio.AsyncClient()
         self.is_connected = False
         self.redis_url = os.getenv('REDIS_URL', 'redis://redis:6379/0')

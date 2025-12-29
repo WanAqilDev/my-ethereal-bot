@@ -62,5 +62,12 @@ class HelpCog(commands.Cog):
             embed.set_footer(text="Made with 💖 by Snow ft. Antigravity")
             await ctx.send(embed=embed)
 
+    @commands.command(name="ping", help="Check bot latency and version")
+    async def ping(self, ctx):
+        from common.version import get_version
+        version = get_version()
+        latency = round(self.bot.latency * 1000)
+        await ctx.send(f"🏓 **Pong!** {latency}ms\n🤖 **Version:** `{version}`")
+
 async def setup(bot):
     await bot.add_cog(HelpCog(bot))

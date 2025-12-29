@@ -12,6 +12,11 @@ socket_app = socketio.ASGIApp(sio)
 # 2. Setup FastAPI
 app = FastAPI(title="Ethereal Trifid API")
 
+@app.get("/")
+async def root():
+    from common.version import get_version
+    return {"message": "Ethereal Trifid API", "version": get_version()}
+
 # Mount Socket.IO
 # Note: In standard ASGI mounts, check path issues. 
 # Usually socketio.ASGIApp wraps the FastAPI app or vice versa.
