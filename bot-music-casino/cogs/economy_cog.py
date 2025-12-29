@@ -198,7 +198,29 @@ class EconomyCog(commands.Cog):
         multiplier = self.get_solvency_multiplier(bank_bal)
         if multiplier == 0: return # Bankrupt
         
-        for guild in self.bot.guilds:
+        # ... logic for awarding points ...
+        pass
+
+    @commands.command(name="airdrop", help="Distribute money from Bank to ALL online users (Admin only)")
+    @commands.is_owner()
+    async def airdrop(self, ctx, amount: int):
+        """Admin command to stimulate the economy."""
+        if amount <= 0: return await ctx.send("Amount must be positive.")
+
+        online_members = [m for m in ctx.guild.members if not m.bot and m.status != discord.Status.offline]
+        if not online_members: return await ctx.send("No one is online!")
+
+        amount_per_person = amount // len(online_members)
+        if amount_per_person < 1: return await ctx.send("Amount too small.")
+
+        bank_reserves = await self.get_bank_reserves()
+        if bank_reserves < amount: return await ctx.send(f"❌ Bank only has {bank_reserves} 💎.")
+
+        for member in online_members:
+            await self.ensure_user(member.id)
+            await self.payout_from_bank(member.id, amount_per_person, "Airdrop")
+        
+        await ctx.send(f"🎈 Global Airdrop! **{amount:,} 💎** distributed to {len(online_members)} citizens ({amount_per_person:,} each).")        for guild in self.bot.guilds:
             if guild.voice_client and guild.voice_client.is_connected():
                 channel = guild.voice_client.channel
                 for member in channel.members:
