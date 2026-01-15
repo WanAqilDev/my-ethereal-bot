@@ -4,13 +4,18 @@ import os
 import asyncio
 from common.database.db import Database
 
+from dotenv import load_dotenv, find_dotenv
+
+# Load env immediately
+load_dotenv(find_dotenv(usecwd=True))
+
 # Basic Setup
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
 intents.members = True # Required for Session Validation
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='?', intents=intents, help_command=None)
 
 @bot.event
 async def on_ready():

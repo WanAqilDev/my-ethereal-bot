@@ -1,12 +1,12 @@
 import discord
 from discord.ext import commands
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import asyncio
 from common.database.db import Database
 
 # Load environment variables
-load_dotenv()
+load_dotenv(find_dotenv(usecwd=True))
 
 # Bot configuration
 intents = discord.Intents.default()

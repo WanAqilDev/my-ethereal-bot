@@ -41,6 +41,8 @@ class MusicCog(commands.Cog):
         self.volume_level = 0.5
         self.loop_mode = "off"
         self.active_filter = "normal"
+        self.consecutive_errors = 0 # Prevent infinite loops
+        
         
         # Smart Redis URL detection
         redis_url = os.getenv('REDIS_URL', 'redis://redis:6379/0')
@@ -113,19 +115,35 @@ class MusicCog(commands.Cog):
                 ctx.voice_client.play(volume_source, after=lambda e: self.check_queue(ctx, e))
                 
                 if start_timestamp == "00:00:00":
+                    self.consecutive_errors = 0 # Reset error count on success
                     await self.send_now_playing(ctx, song)
                     if 'requester_id' in song:
-                        economy = self.bot.get_cog("EconomyCog")
-                        if economy: await economy.add_xp(song['requester_id'], 5, ctx.channel)
+                        try:
+                            economy = self.bot.get_cog("EconomyCog")
+                            if economy: await economy.add_xp(song['requester_id'], 5, ctx.channel)
+                        except Exception as e:
+                            print(f"⚠️ Economy XP Failed: {e}")
         
         except Exception as e:
             await ctx.send(f"Error playing {song['title']}: {e}")
             self.check_queue(ctx, e)
 
     def check_queue(self, ctx, error):
-        if error: print(f"Player error: {error}")
-        
+        if error: 
+            print(f"Player error: {error}")
+            self.consecutive_errors += 1
+            if self.consecutive_errors > 5:
+                print("❌ Too many consecutive errors. Stopping queue to prevent spam.")
+                self.music_queue = []
+                asyncio.run_coroutine_threadsafe(ctx.send("Stopped playback due to too many errors."), self.bot.loop)
+                self.current_song = None
+                return
+
         if self.loop_mode == "song" and self.current_song:
+            if error:
+                 # If we errored on loop, maybe wait a bit or stop? 
+                 # For now, just retry (handled by consecutive_errors check above)
+                 pass
             asyncio.run_coroutine_threadsafe(self.play_music(ctx, self.current_song), self.bot.loop)
             return
 
@@ -270,7 +288,12 @@ class MusicCog(commands.Cog):
             try:
                 await conn.execute("INSERT INTO playlists (user_id, name, songs) VALUES ($1, $2, $3)", ctx.author.id, name, json_songs)
                 await ctx.send(f"Playlist **{name}** saved!")
-            except: await ctx.send(f"Playlist **{name}** already exists.")
+            except Exception as e:
+                # Likely duplicate or DB error
+                if "unique constraint" in str(e).lower():
+                     await ctx.send(f"Playlist **{name}** already exists. Use a different name.")
+                else:
+                     await ctx.send(f"Error saving playlist: {e}")
 
     @playlist.command(name="load")
     async def pl_load(self, ctx, name: str):
